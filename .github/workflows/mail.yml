@@ -14,9 +14,10 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12' # Versione moderna
-      - name: Install deps
-        run: pip install google-genai
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          pip install google-generativeai
       - name: Run Bot
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

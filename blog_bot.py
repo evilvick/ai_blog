@@ -1,76 +1,61 @@
 import os
-from google import genai
+import google.generativeai as genai
 from datetime import datetime
 
 # 1. Configurazione API
 api_key = os.getenv("GEMINI_API_KEY")
-
 if not api_key:
-    print("Errore: GEMINI_API_KEY non trovata nei segreti del repository.")
+    print("Errore: GEMINI_API_KEY non trovata.")
     exit(1)
 
-client = genai.Client(api_key=api_key)
+genai.configure(api_key=api_key)
 
 def leggi_prossimo_titolo():
-    """Legge il titolo da topics.txt e lo rimuove"""
-    if not os.path.exists("topics.txt"):
-        print("Errore: topics.txt non trovato.")
-        return None
-    
+    if not os.path.exists("topics.txt"): return None
     with open("topics.txt", "r", encoding="utf-8") as f:
         linee = f.readlines()
-    
-    if not linee:
-        print("Nessun titolo rimasto.")
-        return None
-    
+    if not linee: return None
     titolo = linee[0].strip()
-    
     with open("topics.txt", "w", encoding="utf-8") as f:
         f.writelines(linee[1:])
-    
     return titolo
 
 def genera_contenuto(titolo):
-    """Chiede a Gemini di scrivere l'articolo"""
+    # Usiamo il modello Flash 1.5 che è il più stabile per le quote gratuite
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
     prompt = f"""
-    Scrivi un articolo per un blog su: "{titolo}".
-    REGOLE:
-    - Stile asciutto, professionale e senza fronzoli.
-    - Usa solo punteggiatura italiana standard.
-    - NON usare mai il simbolo — (trattino lungo). Sostituiscilo con virgole.
-    - Formato Markdown.
+    Scrivi un articolo per un blog tecnico su: "{titolo}".
+    REGOLE MANDATORIE:
+    1. Stile asciutto, diretto e professionale.
+    2. Usa SOLO punteggiatura italiana standard.
+    3. NON usare mai il simbolo — (trattino lungo). Sostituiscilo con virgole.
+    4. Formato Markdown.
     """
     
-    response = client.models.generate_content(
-        model="gemini-1.5-flash",
-        contents=prompt
-    )
-    
+    response = model.generate_content(prompt)
     testo = response.text
-    # Pulizia anti-trattino lungo
+    # Pulizia finale per sicurezza
     return testo.replace("—", ",").replace("–", ",")
 
-# --- Esecuzione Principale ---
+# --- Esecuzione ---
 titolo = leggi_prossimo_titolo()
-
 if titolo:
-    testo_ai = genera_contenuto(titolo)
-    
-    # RIGA 66 CORRETTA:
-    data_iso = datetime.now().strftime("%Y-%m-%d")
-    
-    slug = titolo.replace(" ", "-").lower().replace("'", "-").replace("?", "")
-    nome_file = f"{data_iso}-{slug}.md"
-    
-    with open(nome_file, "w", encoding="utf-8") as f:
-        f.write("---\n")
-        f.write(f"layout: post\n")
-        f.write(f"title: \"{titolo}\"\n")
-        f.write(f"date: {data_iso}\n")
-        f.write("---\n\n")
-        f.write(testo_ai)
-    
-    print(f"Articolo generato con successo: {nome_file}")
+    print(f"Generazione articolo: {titolo}")
+    try:
+        contenuto = genera_contenuto(titolo)
+        data_iso = datetime.now().strftime("%Y-%m-%d")
+        slug = titolo.replace(" ", "-").lower().replace("'", "-").replace("?", "")
+        nome_file = f"{data_iso}-{slug}.md"
+        
+        with open(nome_file, "w", encoding="utf-8") as f:
+            f.write(f"---\nlayout: post\ntitle: \"{titolo}\"\ndate: {data_iso}\n---\n\n")
+            f.write(contenuto)
+        print(f"Successo: {nome_file} creato.")
+    except Exception as e:
+        print(f"Errore durante la generazione: {e}")
+        # Se fallisce, rimettiamo il titolo nel file per non perderlo
+        with open("topics.txt", "a", encoding="utf-8") as f:
+            f.write(f"\n{titolo}")
 else:
-    print("Operazione completata: nessun nuovo titolo da elaborare.")
+    print("Nessun titolo in topics.txt")
