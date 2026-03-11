@@ -1,8 +1,8 @@
 name: AI Blog Auto-Publish
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 9 * * *'
-  workflow_dispatch:
 
 jobs:
   build:
@@ -16,8 +16,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install dependencies
-        run: |
-          pip install google-generativeai
+        run: pip install -U google-generativeai # Il -U forza l'aggiornamento all'ultima versione
       - name: Run Bot
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -27,5 +26,5 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add .
-          git commit -m "Nuovo post AI" || echo "Nulla da pubblicare"
+          git commit -m "Nuovo post AI" || echo "Niente da caricare"
           git push
