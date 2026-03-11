@@ -1,20 +1,24 @@
 import os
 import google.generativeai as genai
-import requests
+from datetime import datetime
 
-# Configurazione chiavi dai segreti di GitHub
+# Recupera la chiave dai segreti di GitHub
 GENAI_KEY = os.getenv("GEMINI_API_KEY")
-MEDIUM_TOKEN = os.getenv("MEDIUM_TOKEN")
-MEDIUM_USER_ID = os.getenv("MEDIUM_USER_ID")
+
+if not GENAI_KEY:
+    print("Errore: Chiave API non trovata.")
+    exit(1)
 
 genai.configure(api_key=GENAI_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 def leggi_prossimo_titolo():
-    if not os.path.exists("topics.txt"): return None
+    if not os.path.exists("topics.txt"):
+        return None
     with open("topics.txt", "r", encoding="utf-8") as f:
         linee = f.readlines()
-    if not linee: return None
+    if not linee:
+        return None
     titolo = linee[0].strip()
     with open("topics.txt", "w", encoding="utf-8") as f:
         f.writelines(linee[1:])
@@ -22,32 +26,31 @@ def leggi_prossimo_titolo():
 
 def genera_contenuto(titolo):
     prompt = f"""
-    Scrivi un articolo per un blog su: "{titolo}".
-    REGOLE MANDATORIE:
-    1. Stile asciutto, diretto, professionale.
-    2. Usa SOLO punteggiatura italiana standard.
-    3. NON usare mai il simbolo — (trattino lungo). Sostituiscilo con virgole.
-    4. Formato Markdown.
+    Scrivi un articolo per un blog tecnico su: "{titolo}".
+    REGOLE: 
+    - Stile asciutto e diretto.
+    - NON usare mai il simbolo — (trattino lungo). Usa virgole.
+    - Formato Markdown.
     """
     response = model.generate_content(prompt)
     testo = response.text
-    # Pulizia di sicurezza per la punteggiatura
+    # Pulizia forzata per i trattini lunghi (sia em-dash che en-dash)
     return testo.replace("—", ",").replace("–", ",")
-
-def pubblica(titolo, testo):
-    url = f"https://api.medium.com/v1/users/{MEDIUM_USER_ID}/posts"
-    headers = {"Authorization": f"Bearer {MEDIUM_TOKEN}", "Content-Type": "application/json"}
-    payload = {
-        "title": titolo,
-        "contentFormat": "markdown",
-        "content": f"# {titolo}\n\n{testo}",
-        "publishStatus": "draft" # Resta in bozza per tua sicurezza
-    }
-    r = requests.post(url, headers=headers, json=payload)
-    return r.status_code == 201
 
 titolo = leggi_prossimo_titolo()
 if titolo:
     testo_ai = genera_contenuto(titolo)
-    if pubblica(titolo, testo_ai):
-        print(f"Post '{titolo}' inviato con successo alle bozze di Medium!")
+    data_iso = datetime.now().strftime("%Y-%m-%d")
+    slug = titolo.replace(" ", "-").lower().replace("'", "-")
+    nome_file = f"{data_iso}-{slug}.md"
+    
+    with open(nome_file, "w", encoding="utf-8") as f:
+        f.write("---\n")
+        f.write(f"layout: post\n")
+        f.write(f"title: \"{titolo}\"\n")
+        f.write(f"date: {data_iso}\n")
+        f.write("---\n\n")
+        f.write(testo_ai)
+    print(f"Post '{titolo}' creato con successo.")
+else:
+    print("Nessun titolo trovato in topics.txt")

@@ -1,0 +1,37 @@
+name: AI Blog Automation
+
+on:
+  schedule:
+    - cron: '0 9 * * *' # Scatta ogni giorno alle 09:00 UTC
+  workflow_dispatch: # Ti permette di farlo partire manualmente per testare
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Permette a GitHub di salvare il nuovo post nel repo
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install google-generativeai
+
+      - name: Run Blog Bot
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python blog_bot.py
+
+      - name: Commit and Push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Nuovo post automatico: $(date +'%Y-%m-%d')" || echo "Nessuna modifica da salvare"
+          git push
