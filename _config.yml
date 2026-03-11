@@ -1,0 +1,5 @@
+title: "Il mio Blog AI"
+description: "Post generati automaticamente da Gemini"
+theme: minima
+baseurl: "/ai_blog"
+url: "https://evilvick.github.io"
