@@ -1,24 +1,20 @@
 import os
-import google.generativeai as genai
+from google import genai
 from datetime import datetime
 
 # Recupera la chiave dai segreti di GitHub
-GENAI_KEY = os.getenv("GEMINI_API_KEY")
-
-if not GENAI_KEY:
-    print("Errore: Chiave API non trovata.")
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    print("Errore: GEMINI_API_KEY non configurata.")
     exit(1)
 
-genai.configure(api_key=GENAI_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+client = genai.Client(api_key=api_key)
 
 def leggi_prossimo_titolo():
-    if not os.path.exists("topics.txt"):
-        return None
+    if not os.path.exists("topics.txt"): return None
     with open("topics.txt", "r", encoding="utf-8") as f:
         linee = f.readlines()
-    if not linee:
-        return None
+    if not linee: return None
     titolo = linee[0].strip()
     with open("topics.txt", "w", encoding="utf-8") as f:
         f.writelines(linee[1:])
@@ -26,31 +22,30 @@ def leggi_prossimo_titolo():
 
 def genera_contenuto(titolo):
     prompt = f"""
-    Scrivi un articolo per un blog tecnico su: "{titolo}".
-    REGOLE: 
-    - Stile asciutto e diretto.
-    - NON usare mai il simbolo — (trattino lungo). Usa virgole.
-    - Formato Markdown.
+    Scrivi un articolo per un blog su: "{titolo}".
+    REGOLE MANDATORIE:
+    1. Stile asciutto, diretto, professionale.
+    2. Usa SOLO punteggiatura italiana standard.
+    3. NON usare mai il simbolo — (trattino lungo). Sostituiscilo con virgole.
+    4. Formato Markdown.
     """
-    response = model.generate_content(prompt)
+    # Usiamo il modello più aggiornato del 2026
+    response = client.models.generate_content(
+        model="gemini-2.0-flash", 
+        contents=prompt
+    )
     testo = response.text
-    # Pulizia forzata per i trattini lunghi (sia em-dash che en-dash)
+    # Pulizia di sicurezza finale
     return testo.replace("—", ",").replace("–", ",")
 
 titolo = leggi_prossimo_titolo()
 if titolo:
     testo_ai = genera_contenuto(titolo)
-    data_iso = datetime.now().strftime("%Y-%m-%d")
+    data_str = datetime.now().strftime("%Y-%m-%d")
     slug = titolo.replace(" ", "-").lower().replace("'", "-")
-    nome_file = f"{data_iso}-{slug}.md"
+    nome_file = f"{data_str}-{slug}.md"
     
     with open(nome_file, "w", encoding="utf-8") as f:
-        f.write("---\n")
-        f.write(f"layout: post\n")
-        f.write(f"title: \"{titolo}\"\n")
-        f.write(f"date: {data_iso}\n")
-        f.write("---\n\n")
+        f.write(f"---\nlayout: post\ntitle: \"{titolo}\"\ndate: {data_str}\n---\n\n")
         f.write(testo_ai)
-    print(f"Post '{titolo}' creato con successo.")
-else:
-    print("Nessun titolo trovato in topics.txt")
+    print(f"Creato: {nome_file}")
