@@ -1,14 +1,16 @@
 import os
-import google.generativeai as genai
+from google import genai
 from datetime import datetime
 
-# 1. Configurazione API
+# 1. Configurazione - Recupero la chiave dai segreti di GitHub
 api_key = os.getenv("GEMINI_API_KEY")
+
 if not api_key:
-    print("Errore: GEMINI_API_KEY mancante nei Secrets di GitHub.")
+    print("Errore: GEMINI_API_KEY non trovata.")
     exit(1)
 
-genai.configure(api_key=api_key)
+# Inizializzazione del client moderno (2026)
+client = genai.Client(api_key=api_key)
 
 def leggi_prossimo_titolo():
     if not os.path.exists("topics.txt"): return None
@@ -21,42 +23,50 @@ def leggi_prossimo_titolo():
     return titolo
 
 def genera_contenuto(titolo):
-    # Passiamo al modello 2.0 che risulta disponibile nei tuoi log
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    # Usiamo il modello 'Lite' che ha molta più disponibilità gratuita
+    nome_modello = "gemini-2.0-flash-lite"
     
     prompt = f"""
-    Scrivi un articolo per un blog tecnico su: "{titolo}".
-    REGOLE MANDATORIE:
-    - Stile asciutto, diretto e professionale.
-    - Usa SOLO punteggiatura italiana standard.
+    Scrivi un post per un blog su: "{titolo}".
+    
+    VINCOLI STILISTICI (MANDATORI):
+    - Tono asciutto, autentico e professionale.
+    - Usa solo la punteggiatura italiana standard.
     - NON usare mai il simbolo — (trattino lungo). Sostituiscilo con virgole.
-    - Formato Markdown.
+    - Formato di uscita: Markdown.
     """
     
-    response = model.generate_content(prompt)
-    testo = response.text
-    # Pulizia finale anti-trattino lungo per sicurezza
-    return testo.replace("—", ",").replace("–", ",")
+    response = client.models.generate_content(
+        model=nome_modello,
+        contents=prompt
+    )
+    
+    # Pulizia finale anti-trattino lungo
+    return response.text.replace("—", ",").replace("–", ",")
 
 # --- Esecuzione ---
-titolo = leggi_prossimo_titolo()
-if titolo:
-    print(f"Generazione articolo in corso per: {titolo}...")
+titolo_scelto = leggi_prossimo_titolo()
+
+if titolo_scelto:
+    print(f"Generazione in corso per: {titolo_scelto}")
     try:
-        contenuto = genera_contenuto(titolo)
-        data_iso = datetime.now().strftime("%Y-%m-%d")
-        slug = titolo.replace(" ", "-").lower().replace("'", "-").replace("?", "")
-        nome_file = f"{data_iso}-{slug}.md"
+        contenuto_ai = genera_contenuto(titolo_scelto)
+        data_oggi = datetime.now().strftime("%Y-%m-%d")
+        
+        # Pulizia slug per il nome file
+        slug = titolo_scelto.replace(" ", "-").lower().replace("'", "-").replace("?", "")
+        nome_file = f"{data_oggi}-{slug}.md"
         
         with open(nome_file, "w", encoding="utf-8") as f:
-            f.write(f"---\nlayout: post\ntitle: \"{titolo}\"\ndate: {data_iso}\n---\n\n")
-            f.write(contenuto)
-        print(f"Successo: creato il file {nome_file}")
+            f.write(f"---\nlayout: post\ntitle: \"{titolo_scelto}\"\ndate: {data_oggi}\n---\n\n")
+            f.write(contenuto_ai)
+        print(f"Successo: creato {nome_file}")
+        
     except Exception as e:
-        print(f"Errore durante la generazione: {e}")
-        # Recupero del titolo in caso di fallimento
+        print(f"Errore: {e}")
+        # Rimettiamo il titolo nel file per non perderlo
         with open("topics.txt", "a", encoding="utf-8") as f:
-            f.write(f"\n{titolo}")
+            f.write(f"\n{titolo_scelto}")
         exit(1)
 else:
-    print("Nessun titolo trovato in topics.txt")
+    print("Nessun titolo trovato.")
