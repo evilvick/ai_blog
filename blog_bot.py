@@ -2,50 +2,65 @@ import os
 from google import genai
 from datetime import datetime
 
-# Recupera la chiave dai segreti di GitHub
+# 1. Configurazione - Recupero la chiave dai segreti di GitHub
 api_key = os.getenv("GEMINI_API_KEY")
+
 if not api_key:
-    print("Errore: GEMINI_API_KEY non configurata.")
+    print("Errore: GEMINI_API_KEY non trovata nei segreti del repository.")
     exit(1)
 
+# Inizializzazione del nuovo client Google GenAI (versione 2026)
 client = genai.Client(api_key=api_key)
 
 def leggi_prossimo_titolo():
-    if not os.path.exists("topics.txt"): return None
+    """Prende il primo titolo e aggiorna il file topics.txt"""
+    if not os.path.exists("topics.txt"):
+        print("Errore: topics.txt non trovato.")
+        return None
+    
     with open("topics.txt", "r", encoding="utf-8") as f:
         linee = f.readlines()
-    if not linee: return None
+    
+    if not linee:
+        print("Nessun titolo rimasto in lista.")
+        return None
+    
     titolo = linee[0].strip()
+    
+    # Riscrive il file togliendo la riga appena usata
     with open("topics.txt", "w", encoding="utf-8") as f:
         f.writelines(linee[1:])
+    
     return titolo
 
 def genera_contenuto(titolo):
+    """Genera il post rispettando rigorosamente lo stile richiesto"""
     prompt = f"""
     Scrivi un articolo per un blog su: "{titolo}".
-    REGOLE MANDATORIE:
-    1. Stile asciutto, diretto, professionale.
-    2. Usa SOLO punteggiatura italiana standard.
-    3. NON usare mai il simbolo — (trattino lungo). Sostituiscilo con virgole.
-    4. Formato Markdown.
+    
+    REGOLE MANDATORIE DI STILE:
+    - Tono asciutto, professionale e senza fronzoli.
+    - Usa SOLO la punteggiatura italiana standard.
+    - NON usare mai il simbolo — (trattino lungo). Sostituiscilo con virgole.
+    - Formato: Markdown.
     """
-    # Usiamo il modello più aggiornato del 2026
+    
+    # Utilizziamo 1.5-flash per evitare i limiti di quota della 2.0
     response = client.models.generate_content(
-        model="gemini-2.0-flash", 
+        model="gemini-1.5-flash",
         contents=prompt
     )
+    
     testo = response.text
-    # Pulizia di sicurezza finale
+    
+    # Pulizia finale forzata: se Gemini scivola, noi correggiamo.
     return testo.replace("—", ",").replace("–", ",")
 
-titolo = leggi_prossimo_titolo()
-if titolo:
-    testo_ai = genera_contenuto(titolo)
-    data_str = datetime.now().strftime("%Y-%m-%d")
-    slug = titolo.replace(" ", "-").lower().replace("'", "-")
-    nome_file = f"{data_str}-{slug}.md"
+# --- Esecuzione ---
+titolo_articolo = leggi_prossimo_titolo()
+
+if titolo_articolo:
+    print(f"Lavoro sul titolo: {titolo_articolo}")
+    contenuto_ai = genera_contenuto(titolo_articolo)
     
-    with open(nome_file, "w", encoding="utf-8") as f:
-        f.write(f"---\nlayout: post\ntitle: \"{titolo}\"\ndate: {data_str}\n---\n\n")
-        f.write(testo_ai)
-    print(f"Creato: {nome_file}")
+    data_iso = datetime.now().strftime("%Y-%m-%d
