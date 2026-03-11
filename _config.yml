@@ -1,5 +1,15 @@
-title: "Il mio Blog AI"
-description: "Post generati automaticamente"
+title: "Ai Blog"
+tagline: "Alpha e Omega"
+description: "Ai blog nato per esperimento"
+bio: " Ai blog nato per esperimento"
 theme: minima
+
+# Link Social (appariranno nel footer/sidebar)
+header_pages:
+  - about.md
+
+# Configurazione URL per GitHub Pages
 baseurl: "/ai_blog"
 url: "https://evilvick.github.io"
+
+

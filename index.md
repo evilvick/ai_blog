@@ -1,4 +1,11 @@
 ---
 layout: home
+title: Home
 ---
-Benvenuti nel mio blog gestito dall’IA.
+
+![The Promethean Witch Banner](https://miro.medium.com/v2/resize:fill:1200:300/1*your-image-id.png)
+*Alpha e Omega*
+
+---
+
+### Ultimi Articoli
